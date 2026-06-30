@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.RectF
 import android.media.Image
 import android.util.Log
+
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.nio.ByteBuffer
@@ -31,6 +32,7 @@ class ObjectDetectorHelper(
     private var interpreter: Interpreter? = null
     private var labels: List<String> = emptyList()
     private var modelInputSize = MODEL_INPUT_SIZE
+    private var numClasses = 0
     private var initError: String? = null
 
     var confidenceThreshold: Float = 0.25f
@@ -54,6 +56,11 @@ class ObjectDetectorHelper(
 
             val outputShape = interpreter?.getOutputTensor(0)?.shape()
             Log.d("YOLO", "Model output shape: ${outputShape?.contentToString()}")
+
+            numClasses = if (outputShape != null && outputShape.size == 3) {
+                maxOf(outputShape[1], outputShape[2]) - 4
+            } else 0
+            Log.d("YOLO", "Detected $numClasses classes from output shape")
 
             labels = loadLabels()
             Log.d("YOLO", "Loaded ${labels.size} labels")
@@ -112,9 +119,10 @@ class ObjectDetectorHelper(
             imageToFloatBuffer(image, inputBuffer)
 
             val outputShape = interpreter.getOutputTensor(0).shape()
+            val valsPerDet = numClasses + 4
 
-            if (outputShape.size == 3 && outputShape[1] == 84) {
-                val output = Array(1) { Array(84) { FloatArray(outputShape[2]) } }
+            if (outputShape.size == 3 && outputShape[1] == valsPerDet) {
+                val output = Array(1) { Array(valsPerDet) { FloatArray(outputShape[2]) } }
                 interpreter.run(inputBuffer, output)
                 val detections = parseYOLOv8Output(output[0], image.width, image.height)
                 val elapsed = System.currentTimeMillis() - startTime
@@ -123,10 +131,10 @@ class ObjectDetectorHelper(
                 onDebug?.invoke(DebugInfo(elapsed, detections.size, debugMsg, fmt, nPlanes))
                 imageProxy.close()
                 onDetections(detections)
-            } else if (outputShape.size == 3 && outputShape[2] == 84) {
-                val output = Array(1) { Array(outputShape[1]) { FloatArray(84) } }
+            } else if (outputShape.size == 3 && outputShape[2] == valsPerDet) {
+                val output = Array(1) { Array(outputShape[1]) { FloatArray(valsPerDet) } }
                 interpreter.run(inputBuffer, output)
-                val transposed = Array(84) { i -> FloatArray(outputShape[1]) { j -> output[0][j][i] } }
+                val transposed = Array(valsPerDet) { i -> FloatArray(outputShape[1]) { j -> output[0][j][i] } }
                 val detections = parseYOLOv8Output(transposed, image.width, image.height)
                 val elapsed = System.currentTimeMillis() - startTime
                 Log.d("YOLO", "Inference: ${elapsed}ms, detections: ${detections.size}")
@@ -247,7 +255,7 @@ class ObjectDetectorHelper(
         for (i in 0 until numDetections) {
             var maxScore = 0f
             var maxClassId = -1
-            for (c in 4 until 84) {
+            for (c in 4 until 4 + numClasses) {
                 val score = sigmoid(output[c][i])
                 if (score > maxScore) {
                     maxScore = score
