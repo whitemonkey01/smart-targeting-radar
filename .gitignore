@@ -1,11 +1,11 @@
 *.iml
-.gradle
+.gradle/
 /local.properties
 /.idea
 .DS_Store
-/build
-/app/build
+/build/
 /captures
 .externalNativeBuild
 .cxx
 local.properties
+__pycache__/
