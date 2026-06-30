@@ -33,6 +33,7 @@ class ObjectDetectorHelper(
     private var labels: List<String> = emptyList()
     private var modelInputSize = MODEL_INPUT_SIZE
     private var numClasses = 0
+    private var isNCHW = false
     private var initError: String? = null
 
     var confidenceThreshold: Float = 0.25f
@@ -47,9 +48,12 @@ class ObjectDetectorHelper(
             val inputShape = interpreter?.getInputTensor(0)?.shape()
             Log.d("YOLO", "Model input shape: ${inputShape?.contentToString()}")
 
-            modelInputSize = if (inputShape != null && inputShape.size >= 2) {
-                inputShape[1]
+            modelInputSize = if (inputShape != null) {
+                inputShape.filter { it > 3 && it <= 2048 }.maxOrNull() ?: MODEL_INPUT_SIZE
             } else MODEL_INPUT_SIZE
+
+            isNCHW = inputShape != null && inputShape.size == 4 && inputShape[1] == 3 && inputShape[3] != 3
+            Log.d("YOLO", "Input format: ${if (isNCHW) "NCHW" else "NHWC"}")
 
             val inputType = interpreter?.getInputTensor(0)?.dataType()
             Log.d("YOLO", "Input type: $inputType, size: ${modelInputSize}x$modelInputSize")
@@ -176,6 +180,7 @@ class ObjectDetectorHelper(
 
     private fun rgbaToFloatBuffer(buf: ByteBuffer, rowStride: Int, pixStride: Int, imgW: Int, imgH: Int, outBuf: ByteBuffer) {
         val cap = buf.capacity()
+        val pixelCount = modelInputSize * modelInputSize
         for (row in 0 until modelInputSize) {
             for (col in 0 until modelInputSize) {
                 val srcRow = row * imgH / modelInputSize
@@ -186,8 +191,18 @@ class ObjectDetectorHelper(
                 val g = if (idx + 2 < cap) (buf.get(idx + 1).toInt() and 0xFF) / 255f else 0f
                 val b = if (idx + 2 < cap) (buf.get(idx + 2).toInt() and 0xFF) / 255f else 0f
 
-                outBuf.putFloat(r); outBuf.putFloat(g); outBuf.putFloat(b)
+                writeRGB(outBuf, row * modelInputSize + col, pixelCount, r, g, b)
             }
+        }
+    }
+
+    private fun writeRGB(outBuf: ByteBuffer, pixelIndex: Int, pixelCount: Int, r: Float, g: Float, b: Float) {
+        if (isNCHW) {
+            outBuf.putFloat(pixelIndex * 4, r)
+            outBuf.putFloat((pixelCount + pixelIndex) * 4, g)
+            outBuf.putFloat((2 * pixelCount + pixelIndex) * 4, b)
+        } else {
+            outBuf.putFloat(r); outBuf.putFloat(g); outBuf.putFloat(b)
         }
     }
 
@@ -206,6 +221,7 @@ class ObjectDetectorHelper(
         val vCap = vBuf.capacity()
 
         val isSemiPlanar = uPixStride == 2 || vPixStride == 2
+        val pixelCount = modelInputSize * modelInputSize
 
         for (row in 0 until modelInputSize) {
             for (col in 0 until modelInputSize) {
@@ -238,7 +254,7 @@ class ObjectDetectorHelper(
                 val g = (y - 0.344f * (u - 128) - 0.714f * (v - 128)).coerceIn(0f, 255f) / 255f
                 val b = (y + 1.773f * (u - 128)).coerceIn(0f, 255f) / 255f
 
-                outBuf.putFloat(r); outBuf.putFloat(g); outBuf.putFloat(b)
+                writeRGB(outBuf, row * modelInputSize + col, pixelCount, r, g, b)
             }
         }
     }
