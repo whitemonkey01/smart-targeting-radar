@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/maxDetectionsLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Max detections: 5"
+        android:textSize="16sp" />
+
+    <SeekBar
+        android:id="@+id/maxDetectionsSeek"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="19"
+        android:progress="4" />
+
+    <TextView
+        android:id="@+id/confidenceLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Confidence: 25%"
+        android:textSize="16sp" />
+
+    <SeekBar
+        android:id="@+id/confidenceSeek"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="90"
+        android:progress="25" />
+
+</LinearLayout>

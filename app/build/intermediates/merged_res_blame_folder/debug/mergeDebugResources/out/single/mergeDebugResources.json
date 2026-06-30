@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "com.smarttarget.radar.app-debug-31:/layout_dialog_settings.xml.flat",
+        "source": "com.smarttarget.radar.app-main-33:/layout/dialog_settings.xml"
+    },
+    {
+        "merged": "/home/earnmoney6125/.gradle/daemon/8.11.1/com.smarttarget.radar.app-debug-31:/layout_activity_main.xml.flat",
+        "source": "/home/earnmoney6125/.gradle/daemon/8.11.1/com.smarttarget.radar.app-main-33:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.smarttarget.radar.app-debug-31:/layout_activity_main.xml.flat",
+        "source": "com.smarttarget.radar.app-main-33:/layout/activity_main.xml"
+    }
+]

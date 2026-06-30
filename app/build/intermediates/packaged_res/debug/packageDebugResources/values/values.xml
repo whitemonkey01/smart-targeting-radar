@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bounding_box_stroke">#FF00FF00</color>
+    <color name="fire_red">#FFFF0000</color>
+    <color name="overlay_background">#00000000</color>
+    <color name="safe_green">#FF00FF00</color>
+    <color name="status_text">#FFFFFFFF</color>
+    <string name="app_name">Radar</string>
+    <style name="Theme.SmartTargetingRadar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>
