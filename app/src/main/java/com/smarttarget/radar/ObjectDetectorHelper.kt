@@ -36,7 +36,7 @@ class ObjectDetectorHelper(
     private var isNCHW = false
     private var initError: String? = null
 
-    var confidenceThreshold: Float = 0.25f
+    var confidenceThreshold: Float = 0.45f
     var iouThreshold: Float = 0.5f
     var maxDetections: Int = 5
 
@@ -62,7 +62,7 @@ class ObjectDetectorHelper(
             Log.d("YOLO", "Model output shape: ${outputShape?.contentToString()}")
 
             numClasses = if (outputShape != null && outputShape.size == 3) {
-                maxOf(outputShape[1], outputShape[2]) - 4
+                minOf(outputShape[1], outputShape[2]) - 4
             } else 0
             Log.d("YOLO", "Detected $numClasses classes from output shape")
 
