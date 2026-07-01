@@ -34,4 +34,18 @@
         android:max="90"
         android:progress="25" />
 
+    <TextView
+        android:id="@+id/classFilterLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Tracked objects: 80/80"
+        android:textSize="16sp" />
+
+    <Button
+        android:id="@+id/selectObjectsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Select Objects" />
+
 </LinearLayout>

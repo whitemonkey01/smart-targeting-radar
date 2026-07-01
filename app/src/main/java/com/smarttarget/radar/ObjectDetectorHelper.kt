@@ -29,13 +29,15 @@ class ObjectDetectorHelper(
     private val onDebug: ((DebugInfo) -> Unit)? = null
 ) {
     private var interpreter: Interpreter? = null
-    private var labels: List<String> = emptyList()
+    var labels: List<String> = emptyList()
+        private set
     private var modelInputSize = MODEL_INPUT_SIZE
     private var initError: String? = null
 
     var confidenceThreshold: Float = 0.25f
     var iouThreshold: Float = 0.5f
     var maxDetections: Int = 5
+    var enabledClassIds: Set<Int>? = null
 
     init {
         try {
@@ -256,6 +258,8 @@ class ObjectDetectorHelper(
             }
 
             if (maxScore < confidenceThreshold) continue
+            val enabled = enabledClassIds
+            if (enabled != null && maxClassId !in enabled) continue
 
             val cx = output[0][i]
             val cy = output[1][i]

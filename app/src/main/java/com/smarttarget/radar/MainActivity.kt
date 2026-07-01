@@ -69,7 +69,13 @@ class MainActivity : AppCompatActivity() {
         requestCamera()
     }
 
+    private var trackedClassStates = booleanArrayOf()
+
     private fun showSettingsDialog() {
+        if (trackedClassStates.isEmpty()) {
+            trackedClassStates = BooleanArray(objectDetector.labels.size) { true }
+        }
+
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Detection Settings")
 
@@ -80,6 +86,8 @@ class MainActivity : AppCompatActivity() {
         val maxDetLabel = layout.findViewById<TextView>(R.id.maxDetectionsLabel)
         val confSeek = layout.findViewById<android.widget.SeekBar>(R.id.confidenceSeek)
         val confLabel = layout.findViewById<TextView>(R.id.confidenceLabel)
+        val classFilterLabel = layout.findViewById<TextView>(R.id.classFilterLabel)
+        val selectObjectsBtn = layout.findViewById<android.widget.Button>(R.id.selectObjectsButton)
 
         maxDetSeek.progress = objectDetector.maxDetections - 1
         maxDetLabel.text = "Max detections: ${objectDetector.maxDetections}"
@@ -106,8 +114,56 @@ class MainActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seek: android.widget.SeekBar) {}
         })
 
-        builder.setPositiveButton("Done") { dialog, _ -> dialog.dismiss() }
+        fun updateClassFilterLabel() {
+            val count = trackedClassStates.count { it }
+            classFilterLabel.text = "Tracked objects: $count/${trackedClassStates.size}"
+        }
+        updateClassFilterLabel()
+
+        selectObjectsBtn.setOnClickListener {
+            showClassSelectionDialog()
+            updateClassFilterLabel()
+        }
+
+        builder.setPositiveButton("Done") { dialog, _ ->
+            applyClassFilter()
+            dialog.dismiss()
+        }
         builder.show()
+    }
+
+    private fun showClassSelectionDialog() {
+        val labels = objectDetector.labels.toTypedArray()
+        val states = trackedClassStates.clone()
+
+        AlertDialog.Builder(this)
+            .setTitle("Select Objects to Detect")
+            .setMultiChoiceItems(labels, states) { _, which, isChecked ->
+                states[which] = isChecked
+            }
+            .setNeutralButton("Select All") { _, _ ->
+                states.fill(true)
+                trackedClassStates = states
+                applyClassFilter()
+            }
+            .setNegativeButton("None") { _, _ ->
+                states.fill(false)
+                trackedClassStates = states
+                applyClassFilter()
+            }
+            .setPositiveButton("Apply") { _, _ ->
+                trackedClassStates = states
+                applyClassFilter()
+            }
+            .show()
+    }
+
+    private fun applyClassFilter() {
+        val enabled = mutableSetOf<Int>()
+        for (i in trackedClassStates.indices) {
+            if (trackedClassStates[i]) enabled.add(i)
+        }
+        objectDetector.enabledClassIds = enabled
     }
 
     private fun requestCamera() {
