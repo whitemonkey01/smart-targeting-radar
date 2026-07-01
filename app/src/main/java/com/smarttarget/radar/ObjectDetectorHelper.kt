@@ -34,6 +34,7 @@ class ObjectDetectorHelper(
     private var modelInputSize = MODEL_INPUT_SIZE
     private var numClasses = 0
     private var isNCHW = false
+    private var hasEmbeddedNMS = false
     private var initError: String? = null
 
     var confidenceThreshold: Float = 0.45f
@@ -61,10 +62,14 @@ class ObjectDetectorHelper(
             val outputShape = interpreter?.getOutputTensor(0)?.shape()
             Log.d("YOLO", "Model output shape: ${outputShape?.contentToString()}")
 
-            numClasses = if (outputShape != null && outputShape.size == 3) {
-                minOf(outputShape[1], outputShape[2]) - 4
-            } else 0
-            Log.d("YOLO", "Detected $numClasses classes from output shape")
+            if (outputShape != null && outputShape.size == 3) {
+                val valsPerDet = minOf(outputShape[1], outputShape[2])
+                hasEmbeddedNMS = valsPerDet == 6
+                numClasses = if (hasEmbeddedNMS) 4 else valsPerDet - 4
+            } else {
+                numClasses = 0
+            }
+            Log.d("YOLO", "Detected $numClasses classes, embeddedNMS=$hasEmbeddedNMS")
 
             labels = loadLabels()
             Log.d("YOLO", "Loaded ${labels.size} labels")
@@ -125,7 +130,18 @@ class ObjectDetectorHelper(
             val outputShape = interpreter.getOutputTensor(0).shape()
             val valsPerDet = numClasses + 4
 
-            if (outputShape.size == 3 && outputShape[1] == valsPerDet) {
+            if (outputShape.size == 3 && hasEmbeddedNMS) {
+                val nmsDims = outputShape[1]
+                val output = Array(1) { Array(nmsDims) { FloatArray(6) } }
+                interpreter.run(inputBuffer, output)
+                val detections = parseNMSOutput(output[0], image.width, image.height)
+                val elapsed = System.currentTimeMillis() - startTime
+                Log.d("YOLO", "Inference: ${elapsed}ms, detections: ${detections.size}")
+                val debugMsg = if (detections.isEmpty()) "No objects >${(confidenceThreshold*100).toInt()}% conf" else ""
+                onDebug?.invoke(DebugInfo(elapsed, detections.size, debugMsg, fmt, nPlanes))
+                imageProxy.close()
+                onDetections(detections)
+            } else if (outputShape.size == 3 && outputShape[1] == valsPerDet) {
                 val output = Array(1) { Array(valsPerDet) { FloatArray(outputShape[2]) } }
                 interpreter.run(inputBuffer, output)
                 val detections = parseYOLOv8Output(output[0], image.width, image.height)
@@ -294,6 +310,42 @@ class ObjectDetectorHelper(
             scores.add(maxScore)
             boxes.add(floatArrayOf(left, top, right, bottom))
             classIds.add(maxClassId)
+        }
+
+        val indices = nms(boxes, scores)
+
+        return indices.map { idx ->
+            val box = boxes[idx]
+            val label = if (classIds[idx] < labels.size) labels[classIds[idx]] else "Class${classIds[idx]}"
+            Detection(
+                label = label,
+                score = scores[idx],
+                boundingBox = RectF(box[0] / imgWidth, box[1] / imgHeight, box[2] / imgWidth, box[3] / imgHeight)
+            )
+        }
+    }
+
+    private fun parseNMSOutput(detections: Array<FloatArray>, imgWidth: Int, imgHeight: Int): List<Detection> {
+        val boxes = mutableListOf<FloatArray>()
+        val scores = mutableListOf<Float>()
+        val classIds = mutableListOf<Int>()
+        val scaleX = imgWidth.toFloat() / modelInputSize
+        val scaleY = imgHeight.toFloat() / modelInputSize
+
+        for (det in detections) {
+            val x1 = det[0]
+            val y1 = det[1]
+            val x2 = det[2]
+            val y2 = det[3]
+            val conf = det[4]
+            val cls = det[5].toInt()
+
+            if (conf < confidenceThreshold) continue
+            if (cls < 0 || cls >= numClasses) continue
+
+            scores.add(conf)
+            boxes.add(floatArrayOf(x1 * scaleX, y1 * scaleY, x2 * scaleX, y2 * scaleY))
+            classIds.add(cls)
         }
 
         val indices = nms(boxes, scores)
